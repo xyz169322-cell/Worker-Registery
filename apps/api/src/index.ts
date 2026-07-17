@@ -13,7 +13,7 @@ const PORT = process.env.PORT || 3001;
 // Middleware
 app.use(helmet());
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:8081', 'http://127.0.0.1:8081'],
+  origin: true, // Allow all origins for Vercel frontend deployments
   credentials: true,
 }));
 app.use(express.json());
