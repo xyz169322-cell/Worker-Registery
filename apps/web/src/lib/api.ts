@@ -1,4 +1,4 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://worker-registry-api.vercel.app/api';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://worker-registery-api.vercel.app/api';
 
 class ApiError extends Error {
   constructor(public status: number, message: string) {
