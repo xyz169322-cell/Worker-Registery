@@ -1,26 +1,18 @@
-const USE_MOCK = process.env.USE_MOCK_APIS === 'true';
+const USE_MOCK = process.env.USE_MOCK_APIS !== 'false'; // Default to true for demo
 
 export const verifyNTN = async (ntn: string) => {
   if (USE_MOCK) {
     await new Promise(r => setTimeout(r, 600));
     
     // Deterministic mock based on last character
-    const lastChar = ntn.slice(-1);
-    if (['1', '3', '5'].includes(lastChar)) {
-      return { status: 'pending', mock: true };
-    }
-    if (lastChar === '0') {
-      return { status: 'not_found', mock: true };
-    }
-    
+    // For demo purposes, always return verified to prevent registration friction
     return { 
       status: 'verified', 
       mock: true, 
       ntn, 
-      businessName: 'Mock Enterprise Pvt Ltd', 
-      registrationDate: '2015-01-10', 
-      activeStatus: 'Active', 
-      taxCategory: 'Company' 
+      businessName: 'Demo Employer Inc', 
+      registrationDate: '2010-01-01', 
+      filerStatus: 'Active' 
     };
   }
   
