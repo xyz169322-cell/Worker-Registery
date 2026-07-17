@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Environment variables (NEVER commit these)
+.env
+.env.local
+.env.production
+
+# Firebase Service Account Keys (NEVER commit these)
+*-firebase-adminsdk-*.json
+firebase-service-account.json
+
+# Build outputs
+dist/
+build/
+.next/
+
+# Expo
+.expo/

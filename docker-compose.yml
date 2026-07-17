@@ -1,0 +1,28 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgres:15
+    container_name: wwb_postgres
+    environment:
+      POSTGRES_USER: wwb_user
+      POSTGRES_PASSWORD: wwb_password
+      POSTGRES_DB: wwb_db
+    ports:
+      - "15432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: wwb_redis
+    ports:
+      - "16379:6379"
+    volumes:
+      - redisdata:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:
