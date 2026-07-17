@@ -110,6 +110,74 @@ export const registerWorker = async (req: Request, res: Response): Promise<void>
   }
 };
 
+export const adminRegisterWorker = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { cnic, name, fatherName, dob, gender, phone, address, employerId, designation, salary, joiningDate } = req.body;
+
+    if (!cnic || !name || !phone) {
+      res.status(400).json({ success: false, message: 'CNIC, Name, and Phone are required' });
+      return;
+    }
+
+    // 1. Check if CNIC already exists
+    const existingCnic = await db.selectFrom('workers')
+      .select('id')
+      .where('cnic', '=', cnic)
+      .executeTakeFirst();
+
+    if (existingCnic) {
+      res.status(400).json({ success: false, message: 'Worker with this CNIC is already registered' });
+      return;
+    }
+
+    // 2. Perform NADRA Check
+    const nadraResult = await verifyNADRA(cnic);
+    if (nadraResult.status !== 'verified') {
+      res.status(400).json({ success: false, message: 'CNIC verification failed with NADRA' });
+      return;
+    }
+
+    // 3. Insert Worker
+    const insertData: any = {
+      cnic,
+      full_name: name,
+      address,
+      phone,
+      designation: designation || null,
+      pay_scale: salary ? parseFloat(salary) : null,
+      verification_status: 'pending'
+    };
+
+    if (employerId && employerId !== '') {
+      insertData.employer_id = employerId;
+    }
+
+    // Convert date format if provided
+    if (joiningDate) {
+      insertData.date_of_joining = new Date(joiningDate).toISOString().split('T')[0];
+    }
+
+    // NOTE: fatherName, dob, gender might need DB schema updates if they don't exist yet, 
+    // but we can map them to the existing schema as needed or ignore if not in schema.
+    // The workers table has full_name, designation, pay_scale, address, phone.
+
+    await db.insertInto('workers')
+      .values(insertData)
+      .execute();
+
+    workersCache = null; // Invalidate the cache
+
+    res.json({
+      success: true,
+      message: 'Worker registered successfully by admin',
+    });
+
+  } catch (error) {
+    console.error('adminRegisterWorker error', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
 export const getWorkerById = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;

@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input';
 import { CnicInput } from '@/components/CnicInput';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CheckCircle2, Save, X } from 'lucide-react';
+import { CheckCircle2, Save, X, AlertCircle } from 'lucide-react';
+import { api } from '@/lib/api';
 
 export default function RegisterWorkerPage() {
   const router = useRouter();
@@ -25,14 +26,28 @@ export default function RegisterWorkerPage() {
   });
 
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Simulate API call
-    setSubmitted(true);
-    setTimeout(() => {
-      router.push('/workers');
-    }, 2000);
+    setError('');
+    setLoading(true);
+    try {
+      const res = await api.post('/workers/admin-register', formData);
+      if (res.data?.success) {
+        setSubmitted(true);
+        setTimeout(() => {
+          router.push('/workers');
+        }, 2000);
+      } else {
+        setError(res.data?.message || 'Registration failed');
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to register worker');
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (submitted) {
@@ -58,14 +73,21 @@ export default function RegisterWorkerPage() {
           <p className="text-sm text-gray-500 mt-1">Enter official details to initiate verification process.</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => router.back()} className="border-gray-200">
+          <Button variant="outline" onClick={() => router.back()} className="border-gray-200" disabled={loading}>
             <X className="w-4 h-4 mr-2" /> Cancel
           </Button>
-          <Button onClick={handleSubmit} className="bg-navy hover:bg-gold text-white font-bold">
-            <Save className="w-4 h-4 mr-2" /> Submit Registration
+          <Button onClick={handleSubmit} className="bg-navy hover:bg-gold text-white font-bold" disabled={loading}>
+            <Save className="w-4 h-4 mr-2" /> {loading ? 'Submitting...' : 'Submit Registration'}
           </Button>
         </div>
       </div>
+
+      {error && (
+        <div className="bg-red-50 text-red-600 p-4 rounded-md flex items-center border border-red-200">
+          <AlertCircle className="w-5 h-5 mr-3 flex-shrink-0" />
+          <p className="font-medium text-sm">{error}</p>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <Card className="border-gray-200 shadow-sm rounded-md">
@@ -98,6 +120,17 @@ export default function RegisterWorkerPage() {
                 className="border-gray-300 focus-visible:ring-navy"
                 value={formData.fatherName}
                 onChange={e => setFormData({...formData, fatherName: e.target.value})}
+              />
+            </div>
+
+            <div className="col-span-2 md:col-span-1">
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Phone Number</label>
+              <Input 
+                required 
+                placeholder="03001234567"
+                className="border-gray-300 focus-visible:ring-navy"
+                value={formData.phone}
+                onChange={e => setFormData({...formData, phone: e.target.value})}
               />
             </div>
             
