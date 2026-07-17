@@ -9,8 +9,9 @@ import { GovHeader } from '../../components/GovHeader';
 import { useI18n } from '../../lib/i18n';
 import { api } from '../../lib/api';
 import { setTokens } from '../../lib/auth';
-import { auth } from '../../lib/firebase';
-import { signInWithPhoneNumber, RecaptchaVerifier, ConfirmationResult, ApplicationVerifier } from 'firebase/auth';
+import { auth, firebaseConfig } from '../../lib/firebase';
+import { signInWithPhoneNumber, RecaptchaVerifier, ConfirmationResult } from 'firebase/auth';
+import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
 
 type Step = 'phone' | 'otp';
 
@@ -22,6 +23,7 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
+  const recaptchaVerifier = React.useRef(null);
 
   const handleSendOtp = async () => {
     if (phone.length < 10) {
@@ -35,7 +37,6 @@ export default function LoginScreen() {
       const formattedPhone = phone.startsWith('0') ? '+92' + phone.substring(1).replace(/\D/g, '') : '+' + phone.replace(/\D/g, '');
       
       // In a React Native Web environment, RecaptchaVerifier works with DOM. 
-      // For pure Native, you'd use @react-native-firebase or expo-firebase-recaptcha.
       if (Platform.OS === 'web') {
         if (!(window as any).recaptchaVerifier) {
           (window as any).recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'invisible' });
@@ -44,8 +45,9 @@ export default function LoginScreen() {
         const confirmation = await signInWithPhoneNumber(auth, formattedPhone, appVerifier);
         setConfirmationResult(confirmation);
       } else {
-        // Mock fallback for native until native-specific recaptcha is configured
-        await new Promise(r => setTimeout(r, 1000));
+        // Native Recaptcha
+        const confirmation = await signInWithPhoneNumber(auth, formattedPhone, recaptchaVerifier.current as any);
+        setConfirmationResult(confirmation);
       }
       setStep('otp');
     } catch (e: any) {
@@ -64,12 +66,14 @@ export default function LoginScreen() {
     setLoading(true);
     setError('');
     try {
-      let idToken = 'mock-id-token';
+      let idToken = '';
 
-      // If we have a real Firebase confirmation result, verify it
+      // Verify the OTP via Firebase
       if (confirmationResult) {
         const res = await confirmationResult.confirm(otp);
         idToken = await res.user.getIdToken();
+      } else {
+        throw new Error('Please request OTP first');
       }
 
       // Send the Firebase ID Token to our backend
@@ -88,9 +92,7 @@ export default function LoginScreen() {
       if (e.response?.status === 404) {
         router.push({ pathname: '/(auth)/register', params: { phone } });
       } else {
-        // Fallback for demo mode
-        await setTokens('mock-token-' + Date.now(), 'mock-refresh-' + Date.now());
-        router.replace('/(app)');
+        setError('Invalid OTP code. Please try again.');
       }
     } finally {
       setLoading(false);
@@ -99,7 +101,15 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      {Platform.OS === 'web' && <div id="recaptcha-container" />}
+      {Platform.OS === 'web' ? (
+        <div id="recaptcha-container" />
+      ) : (
+        <FirebaseRecaptchaVerifierModal
+          ref={recaptchaVerifier}
+          firebaseConfig={firebaseConfig}
+          attemptInvisibleVerification={true}
+        />
+      )}
       <GovHeader />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">

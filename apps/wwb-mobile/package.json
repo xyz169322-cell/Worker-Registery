@@ -8,6 +8,7 @@
     "@react-native-async-storage/async-storage": "2.2.0",
     "expo": "~56.0.12",
     "expo-constants": "~56.0.18",
+    "expo-firebase-recaptcha": "^2.3.1",
     "expo-haptics": "~56.0.3",
     "expo-linking": "~56.0.14",
     "expo-router": "^56.2.11",
@@ -23,7 +24,8 @@
     "react-native-screens": "4.25.2",
     "react-native-svg": "15.15.4",
     "react-native-view-shot": "5.1.0",
-    "react-native-web": "^0.21.2"
+    "react-native-web": "^0.21.2",
+    "react-native-webview": "^14.0.1"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
