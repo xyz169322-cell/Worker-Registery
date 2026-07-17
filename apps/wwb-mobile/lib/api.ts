@@ -4,7 +4,7 @@ import { getAccessToken, getRefreshToken, setTokens, clearTokens } from './auth'
 // e.g. 'http://192.168.1.100:3001/api'
 export const API_BASE = process.env.EXPO_PUBLIC_API_URL
   ? `${process.env.EXPO_PUBLIC_API_URL}/api`
-  : 'http://localhost:3001/api';
+  : 'https://worker-registry-api.vercel.app/api';
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
