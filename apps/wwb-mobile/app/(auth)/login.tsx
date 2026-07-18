@@ -29,14 +29,14 @@ export default function LoginScreen() {
     setError('');
     try {
       const res = await api.post('/auth/send-otp', { phone });
-      if (res.data?.success) {
+      if (res?.success) {
         setStep('otp');
       } else {
-        setError(res.data?.message || 'Failed to send OTP');
+        setError(res?.message || 'Failed to send OTP');
       }
     } catch (e: any) {
       console.error(e);
-      setError(e.response?.data?.message || 'Failed to send OTP. Please try again.');
+      setError(e.message || 'Failed to send OTP. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -51,7 +51,7 @@ export default function LoginScreen() {
     setError('');
     try {
       const res = await api.post('/auth/verify-otp', { phone, code: otp });
-      const payload = res?.data?.data;
+      const payload = res?.data;
 
       if (payload?.accessToken) {
         await setTokens(payload.accessToken, payload.refreshToken);
@@ -61,11 +61,11 @@ export default function LoginScreen() {
       }
     } catch (e: any) {
       console.error(e);
-      if (e.response?.status === 404) {
+      if (e.status === 404) {
         // Worker not registered — take them to register screen
         router.push({ pathname: '/(auth)/register', params: { phone } });
       } else {
-        setError(e.response?.data?.message || 'Invalid OTP code. Please try again.');
+        setError(e.message || 'Invalid OTP code. Please try again.');
       }
     } finally {
       setLoading(false);

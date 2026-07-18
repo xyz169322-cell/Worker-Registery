@@ -41,14 +41,14 @@ export default function RegisterScreen() {
     setCnicError('');
     try {
       const res = await api.post('/workers/public/check-cnic', { cnic });
-      if (res.data?.success) {
-        setNadraName(res.data.data.name);
+      if (res?.success) {
+        setNadraName(res?.data?.name);
         setStep(2);
       } else {
-        throw new Error(res.data?.message || 'Verification failed');
+        throw new Error(res?.message || 'Verification failed');
       }
     } catch (e: any) {
-      setCnicError(e.response?.data?.message || e.message || t.cnicFailed);
+      setCnicError(e.message || t.cnicFailed);
     } finally {
       setCnicLoading(false);
     }
@@ -59,14 +59,14 @@ export default function RegisterScreen() {
     setLoading(true);
     try {
       const res = await api.post('/auth/send-otp', { phone, type: 'register' });
-      if (res.data?.success) {
+      if (res?.success) {
         setOtpSent(true);
       } else {
-        alert(res.data?.message || 'Failed to send OTP');
+        alert(res?.message || 'Failed to send OTP');
       }
     } catch (e: any) {
       console.error(e);
-      alert(e.response?.data?.message || 'Failed to send OTP');
+      alert(e.message || 'Failed to send OTP');
     } finally {
       setLoading(false);
     }
@@ -84,14 +84,14 @@ export default function RegisterScreen() {
         fullName: nadraName || 'Worker'
       });
 
-      if (res.data?.success) {
+      if (res?.success) {
         setStep(4);
       } else {
-        throw new Error(res.data?.message || 'Registration failed');
+        throw new Error(res?.message || 'Registration failed');
       }
     } catch (e: any) {
       console.error(e);
-      alert(e.response?.data?.message || e.message || 'Invalid OTP');
+      alert(e.message || 'Invalid OTP');
     } finally {
       setLoading(false);
     }
