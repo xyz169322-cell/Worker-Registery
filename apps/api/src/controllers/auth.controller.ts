@@ -137,8 +137,9 @@ export const sendOtp = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Generate 6-digit OTP
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    // Generate 6-digit OTP (use 123456 for demo mode so user can test without seeing console)
+    const isMock = process.env.USE_MOCK_APIS !== 'false';
+    const code = isMock ? '123456' : Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes
 
     // Store OTP
