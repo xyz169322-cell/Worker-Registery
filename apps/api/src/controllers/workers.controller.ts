@@ -3,6 +3,7 @@ import { db } from '../config/db';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { verifyNADRA } from '../adapters/nadra.adapter';
 import admin from 'firebase-admin';
+import { verifyAndConsumeOtp } from './auth.controller';
 
 export const checkCnic = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -25,10 +26,11 @@ export const checkCnic = async (req: Request, res: Response): Promise<void> => {
 
     // 2. Perform NADRA Check
     const nadraResult = await verifyNADRA(cnic);
-    if (nadraResult.status !== 'verified') {
-      res.status(400).json({ success: false, message: 'CNIC verification failed with NADRA' });
-      return;
-    }
+    // BYPASS: Ignore NADRA verification failures for now as requested
+    // if (nadraResult.status !== 'verified') {
+    //   res.status(400).json({ success: false, message: 'CNIC verification failed with NADRA' });
+    //   return;
+    // }
 
     res.json({
       success: true,
@@ -45,26 +47,21 @@ export const checkCnic = async (req: Request, res: Response): Promise<void> => {
 
 export const registerWorker = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { idToken, cnic, fullName, employer, jobTitle, payScale, paymentMode, bankName, bankAccount, eobiNumber, address } = req.body;
+    const { phone, otpCode, cnic, fullName, employer, jobTitle, payScale, paymentMode, bankName, bankAccount, eobiNumber, address } = req.body;
 
-    if (!idToken) {
-      res.status(401).json({ success: false, message: 'Missing authentication token' });
+    if (!phone || !otpCode) {
+      res.status(401).json({ success: false, message: 'Phone and OTP code are required for registration' });
       return;
     }
 
-    // 1. Verify Firebase Token
-    let decodedToken;
-    try {
-      decodedToken = await admin.auth().verifyIdToken(idToken);
-    } catch (err) {
-      console.error('Firebase token verification failed', err);
-      res.status(401).json({ success: false, message: 'Invalid authentication token' });
-      return;
-    }
+    // Format phone
+    const cleaned = phone.replace(/\D/g, '');
+    const formattedPhone = cleaned.startsWith('0') ? '+92' + cleaned.substring(1) : '+' + cleaned;
 
-    const phone = decodedToken.phone_number;
-    if (!phone) {
-      res.status(400).json({ success: false, message: 'Phone number not linked to this token' });
+    // 1. Verify OTP using our backend store
+    const verification = verifyAndConsumeOtp(formattedPhone, otpCode);
+    if (!verification.success) {
+      res.status(400).json({ success: false, message: verification.message });
       return;
     }
 
@@ -91,7 +88,7 @@ export const registerWorker = async (req: Request, res: Response): Promise<void>
         bank_account: bankAccount || null,
         eobi_number: eobiNumber || null,
         address,
-        phone,
+        phone: formattedPhone,
         verification_status: 'pending',
         // employer_id mapping is complex for MVP (string vs UUID), so leaving null if we don't have UUID
       })
@@ -132,10 +129,11 @@ export const adminRegisterWorker = async (req: AuthRequest, res: Response): Prom
 
     // 2. Perform NADRA Check
     const nadraResult = await verifyNADRA(cnic);
-    if (nadraResult.status !== 'verified') {
-      res.status(400).json({ success: false, message: 'CNIC verification failed with NADRA' });
-      return;
-    }
+    // BYPASS: Ignore NADRA verification failures for now as requested
+    // if (nadraResult.status !== 'verified') {
+    //   res.status(400).json({ success: false, message: 'CNIC verification failed with NADRA' });
+    //   return;
+    // }
 
     // 3. Insert Worker
     const insertData: any = {

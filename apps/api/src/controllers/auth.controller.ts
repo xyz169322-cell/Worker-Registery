@@ -7,7 +7,20 @@ import { firebaseAdmin } from '../config/firebase';
 import { sendOTP } from '../adapters/sms.adapter';
 
 // In-memory OTP store: phone -> { code, expiresAt }
-const otpStore = new Map<string, { code: string; expiresAt: number; phone: string }>();
+export const otpStore = new Map<string, { code: string; expiresAt: number; phone: string }>();
+
+export const verifyAndConsumeOtp = (formattedPhone: string, code: string): { success: boolean; message?: string } => {
+  const stored = otpStore.get(formattedPhone);
+  if (!stored) return { success: false, message: 'No OTP requested for this number' };
+  if (Date.now() > stored.expiresAt) {
+    otpStore.delete(formattedPhone);
+    return { success: false, message: 'OTP has expired. Please request a new one.' };
+  }
+  if (stored.code !== code) return { success: false, message: 'Invalid OTP code. Please try again.' };
+  
+  otpStore.delete(formattedPhone);
+  return { success: true };
+};
 
 const generateTokens = (user: any) => {
   const payload = {
@@ -98,7 +111,7 @@ export const phoneLogin = async (req: Request, res: Response): Promise<void> => 
 
 export const sendOtp = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { phone } = req.body;
+    const { phone, type = 'login' } = req.body;
     if (!phone) {
       res.status(400).json({ success: false, message: 'Phone number is required' });
       return;
@@ -107,6 +120,22 @@ export const sendOtp = async (req: Request, res: Response): Promise<void> => {
     // Format phone to E.164
     const cleaned = phone.replace(/\D/g, '');
     const formattedPhone = cleaned.startsWith('0') ? '+92' + cleaned.substring(1) : '+' + cleaned;
+
+    // Check if worker exists
+    const worker = await db.selectFrom('workers')
+      .select('id')
+      .where('phone', '=', formattedPhone)
+      .executeTakeFirst();
+
+    if (type === 'login' && !worker) {
+      res.status(404).json({ success: false, message: 'Worker not registered', phone: formattedPhone });
+      return;
+    }
+
+    if (type === 'register' && worker) {
+      res.status(400).json({ success: false, message: 'Phone number already registered' });
+      return;
+    }
 
     // Generate 6-digit OTP
     const code = Math.floor(100000 + Math.random() * 900000).toString();
@@ -139,27 +168,12 @@ export const verifyOtp = async (req: Request, res: Response): Promise<void> => {
     const cleaned = phone.replace(/\D/g, '');
     const formattedPhone = cleaned.startsWith('0') ? '+92' + cleaned.substring(1) : '+' + cleaned;
 
-    // Look up stored OTP
-    const stored = otpStore.get(formattedPhone);
-
-    if (!stored) {
-      res.status(400).json({ success: false, message: 'No OTP requested for this number' });
+    // Verify OTP
+    const verification = verifyAndConsumeOtp(formattedPhone, code);
+    if (!verification.success) {
+      res.status(400).json(verification);
       return;
     }
-
-    if (Date.now() > stored.expiresAt) {
-      otpStore.delete(formattedPhone);
-      res.status(400).json({ success: false, message: 'OTP has expired. Please request a new one.' });
-      return;
-    }
-
-    if (stored.code !== code) {
-      res.status(400).json({ success: false, message: 'Invalid OTP code. Please try again.' });
-      return;
-    }
-
-    // OTP is valid — delete it
-    otpStore.delete(formattedPhone);
 
     // Look up worker by phone
     const worker = await db.selectFrom('workers')

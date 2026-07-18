@@ -10,7 +10,6 @@ import { useI18n } from '../../lib/i18n';
 import { api } from '../../lib/api';
 import { setTokens } from '../../lib/auth';
 import { auth } from '../../lib/firebase';
-import { signInWithPhoneNumber, RecaptchaVerifier, ConfirmationResult } from 'firebase/auth';
 import { CheckCircle } from 'lucide-react-native';
 
 type Step = 1 | 2 | 3 | 4;
@@ -33,7 +32,6 @@ export default function RegisterScreen() {
   const [otp, setOtp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
 
   const stepLabels = [t.step1, t.step2, t.step3, t.step4];
 
@@ -60,21 +58,15 @@ export default function RegisterScreen() {
     if (phone.length < 10) return;
     setLoading(true);
     try {
-      const formattedPhone = phone.startsWith('0') ? '+92' + phone.substring(1).replace(/\D/g, '') : '+' + phone.replace(/\D/g, '');
-      if (Platform.OS === 'web') {
-        if (!(window as any).recaptchaVerifier) {
-          (window as any).recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'invisible' });
-        }
-        const appVerifier = (window as any).recaptchaVerifier;
-        const confirmation = await signInWithPhoneNumber(auth, formattedPhone, appVerifier);
-        setConfirmationResult(confirmation);
+      const res = await api.post('/auth/send-otp', { phone, type: 'register' });
+      if (res.data?.success) {
+        setOtpSent(true);
       } else {
-        await new Promise(r => setTimeout(r, 1000));
+        alert(res.data?.message || 'Failed to send OTP');
       }
-      setOtpSent(true);
     } catch (e: any) {
       console.error(e);
-      alert(e.message || 'Failed to send OTP');
+      alert(e.response?.data?.message || 'Failed to send OTP');
     } finally {
       setLoading(false);
     }
@@ -84,18 +76,12 @@ export default function RegisterScreen() {
     if (otp.length !== 6) return;
     setLoading(true);
     try {
-      let idToken = 'mock-token';
-      if (confirmationResult) {
-        const res = await confirmationResult.confirm(otp);
-        idToken = await res.user.getIdToken();
-      }
-
       const res = await api.post('/workers/public/register', { 
         ...form, 
         cnic, 
         phone, 
-        idToken,
-        fullName: nadraName 
+        otpCode: otp,
+        fullName: nadraName || 'Worker'
       });
 
       if (res.data?.success) {
@@ -123,7 +109,6 @@ export default function RegisterScreen() {
 
   return (
     <View style={styles.container}>
-      {Platform.OS === 'web' && <div id="recaptcha-container" />}
       <GovHeader />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">

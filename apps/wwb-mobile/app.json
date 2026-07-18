@@ -1,15 +1,17 @@
 {
   "expo": {
-    "name": "wwb-mobile",
+    "name": "WWB Worker Portal",
     "slug": "wwb-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "pk.gov.punjab.wwb.worker"
     },
     "android": {
+      "package": "pk.gov.punjab.wwb.worker",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -24,6 +26,13 @@
     "scheme": "wwbmobile",
     "plugins": [
       "expo-router"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "55acf73e-f90a-4d24-b004-aa015619055c"
+      }
+    },
+    "owner": "mahadhassan"
   }
 }
