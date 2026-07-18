@@ -1,4 +1,4 @@
-const USE_MOCK = process.env.USE_MOCK_APIS === 'true';
+const USE_MOCK = process.env.USE_MOCK_APIS !== 'false'; // Default true for demo
 
 export const sendOTP = async (phone: string, otp: string) => {
   return sendNotification(phone, `Your Workers Welfare Board verification code is ${otp}. Valid for 5 minutes.`);

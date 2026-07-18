@@ -2,16 +2,13 @@ import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, ActivityIndicator, KeyboardAvoidingView,
-  Platform, ScrollView, Alert,
+  Platform, ScrollView,
 } from 'react-native';
 import { router } from 'expo-router';
 import { GovHeader } from '../../components/GovHeader';
 import { useI18n } from '../../lib/i18n';
 import { api } from '../../lib/api';
 import { setTokens } from '../../lib/auth';
-import { auth, firebaseConfig } from '../../lib/firebase';
-import { signInWithPhoneNumber, RecaptchaVerifier, ConfirmationResult } from 'firebase/auth';
-import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
 
 type Step = 'phone' | 'otp';
 
@@ -22,8 +19,6 @@ export default function LoginScreen() {
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
-  const recaptchaVerifier = React.useRef(null);
 
   const handleSendOtp = async () => {
     if (phone.length < 10) {
@@ -33,26 +28,15 @@ export default function LoginScreen() {
     setLoading(true);
     setError('');
     try {
-      // Format phone number to E.164 (Assuming Pakistan +92)
-      const formattedPhone = phone.startsWith('0') ? '+92' + phone.substring(1).replace(/\D/g, '') : '+' + phone.replace(/\D/g, '');
-      
-      // In a React Native Web environment, RecaptchaVerifier works with DOM. 
-      if (Platform.OS === 'web') {
-        if (!(window as any).recaptchaVerifier) {
-          (window as any).recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'invisible' });
-        }
-        const appVerifier = (window as any).recaptchaVerifier;
-        const confirmation = await signInWithPhoneNumber(auth, formattedPhone, appVerifier);
-        setConfirmationResult(confirmation);
+      const res = await api.post('/auth/send-otp', { phone });
+      if (res.data?.success) {
+        setStep('otp');
       } else {
-        // Native Recaptcha
-        const confirmation = await signInWithPhoneNumber(auth, formattedPhone, recaptchaVerifier.current as any);
-        setConfirmationResult(confirmation);
+        setError(res.data?.message || 'Failed to send OTP');
       }
-      setStep('otp');
     } catch (e: any) {
       console.error(e);
-      setError(e.message || 'Failed to send OTP');
+      setError(e.response?.data?.message || 'Failed to send OTP. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -66,33 +50,22 @@ export default function LoginScreen() {
     setLoading(true);
     setError('');
     try {
-      let idToken = '';
+      const res = await api.post('/auth/verify-otp', { phone, code: otp });
+      const payload = res?.data?.data;
 
-      // Verify the OTP via Firebase
-      if (confirmationResult) {
-        const res = await confirmationResult.confirm(otp);
-        idToken = await res.user.getIdToken();
-      } else {
-        throw new Error('Please request OTP first');
-      }
-
-      // Send the Firebase ID Token to our backend
-      const res = await api.post('/auth/phone-login', { idToken });
-      const payload = res?.data || res;
-      
       if (payload?.accessToken) {
         await setTokens(payload.accessToken, payload.refreshToken);
         router.replace('/(app)');
       } else {
-        throw new Error('No access token returned from backend');
+        throw new Error('No access token returned');
       }
     } catch (e: any) {
       console.error(e);
-      // If the backend returns 404, the worker is not registered
       if (e.response?.status === 404) {
+        // Worker not registered — take them to register screen
         router.push({ pathname: '/(auth)/register', params: { phone } });
       } else {
-        setError('Invalid OTP code. Please try again.');
+        setError(e.response?.data?.message || 'Invalid OTP code. Please try again.');
       }
     } finally {
       setLoading(false);
@@ -101,15 +74,6 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      {Platform.OS === 'web' ? (
-        <div id="recaptcha-container" />
-      ) : (
-        <FirebaseRecaptchaVerifierModal
-          ref={recaptchaVerifier}
-          firebaseConfig={firebaseConfig}
-          attemptInvisibleVerification={true}
-        />
-      )}
       <GovHeader />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
@@ -165,6 +129,7 @@ export default function LoginScreen() {
                   placeholder="— — — — — —"
                   placeholderTextColor="#9CA3AF"
                   maxLength={6}
+                  autoFocus
                 />
                 <Text style={[styles.expiry, isRtl && styles.rtl]}>{t.otpExpiry}</Text>
                 {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -178,7 +143,7 @@ export default function LoginScreen() {
                     : <Text style={styles.btnText}>{t.verifyOtp}</Text>
                   }
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => setStep('phone')} style={styles.backLink}>
+                <TouchableOpacity onPress={() => { setStep('phone'); setOtp(''); setError(''); }} style={styles.backLink}>
                   <Text style={styles.backLinkText}>{t.back}</Text>
                 </TouchableOpacity>
               </>

@@ -4,6 +4,10 @@ import jwt from 'jsonwebtoken';
 import { db } from '../config/db';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { firebaseAdmin } from '../config/firebase';
+import { sendOTP } from '../adapters/sms.adapter';
+
+// In-memory OTP store: phone -> { code, expiresAt }
+const otpStore = new Map<string, { code: string; expiresAt: number; phone: string }>();
 
 const generateTokens = (user: any) => {
   const payload = {
@@ -89,6 +93,116 @@ export const phoneLogin = async (req: Request, res: Response): Promise<void> => 
   } catch (error) {
     console.error('Phone login error:', error);
     res.status(401).json({ success: false, message: 'Invalid or expired Firebase token' });
+  }
+};
+
+export const sendOtp = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { phone } = req.body;
+    if (!phone) {
+      res.status(400).json({ success: false, message: 'Phone number is required' });
+      return;
+    }
+
+    // Format phone to E.164
+    const cleaned = phone.replace(/\D/g, '');
+    const formattedPhone = cleaned.startsWith('0') ? '+92' + cleaned.substring(1) : '+' + cleaned;
+
+    // Generate 6-digit OTP
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes
+
+    // Store OTP
+    otpStore.set(formattedPhone, { code, expiresAt, phone: formattedPhone });
+
+    // Send SMS
+    await sendOTP(formattedPhone, code);
+
+    console.log(`[OTP] Sent ${code} to ${formattedPhone}`);
+
+    res.json({ success: true, message: 'OTP sent successfully' });
+  } catch (error) {
+    console.error('Send OTP error:', error);
+    res.status(500).json({ success: false, message: 'Failed to send OTP' });
+  }
+};
+
+export const verifyOtp = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { phone, code } = req.body;
+    if (!phone || !code) {
+      res.status(400).json({ success: false, message: 'Phone and OTP code are required' });
+      return;
+    }
+
+    // Format phone
+    const cleaned = phone.replace(/\D/g, '');
+    const formattedPhone = cleaned.startsWith('0') ? '+92' + cleaned.substring(1) : '+' + cleaned;
+
+    // Look up stored OTP
+    const stored = otpStore.get(formattedPhone);
+
+    if (!stored) {
+      res.status(400).json({ success: false, message: 'No OTP requested for this number' });
+      return;
+    }
+
+    if (Date.now() > stored.expiresAt) {
+      otpStore.delete(formattedPhone);
+      res.status(400).json({ success: false, message: 'OTP has expired. Please request a new one.' });
+      return;
+    }
+
+    if (stored.code !== code) {
+      res.status(400).json({ success: false, message: 'Invalid OTP code. Please try again.' });
+      return;
+    }
+
+    // OTP is valid — delete it
+    otpStore.delete(formattedPhone);
+
+    // Look up worker by phone
+    const worker = await db.selectFrom('workers')
+      .selectAll()
+      .where('phone', '=', formattedPhone)
+      .executeTakeFirst();
+
+    if (!worker) {
+      res.status(404).json({
+        success: false,
+        message: 'Worker not registered',
+        phone: formattedPhone
+      });
+      return;
+    }
+
+    // Generate JWT tokens
+    const workerUser = {
+      id: worker.id,
+      email: `${worker.cnic}@mobile.wwb`,
+      role: 'worker',
+      department: undefined
+    };
+
+    const { accessToken, refreshToken } = generateTokens(workerUser);
+
+    res.json({
+      success: true,
+      data: {
+        accessToken,
+        refreshToken,
+        user: {
+          id: worker.id,
+          name: worker.full_name,
+          role: 'worker',
+          cnic: worker.cnic
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Verify OTP error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
