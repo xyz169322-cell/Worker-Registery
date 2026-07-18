@@ -5,8 +5,8 @@ import { SessionTimeoutModal } from '@/components/SessionTimeoutModal';
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex bg-gray-50">
-      <GovSidebar className="print:hidden shrink-0 flex" />
-      <div className="flex-1 flex flex-col min-w-0">
+      <GovSidebar className="print:hidden shrink-0" />
+      <div className="flex-1 flex flex-col min-w-0 pt-14 lg:pt-0">
         <main className="flex-1 p-4 md:p-8 overflow-y-auto print:p-0">
           <div className="max-w-7xl mx-auto">
             {children}

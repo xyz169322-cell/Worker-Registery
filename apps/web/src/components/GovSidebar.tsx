@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { Users, LayoutDashboard, Building2, CheckSquare, FileBarChart, ShieldAlert, LogOut, Bell } from 'lucide-react';
+import { Users, LayoutDashboard, Building2, CheckSquare, FileBarChart, ShieldAlert, LogOut, Bell, Menu, X } from 'lucide-react';
 
 const NAV_ITEMS = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['super_admin', 'wwb_admin'] },
@@ -15,31 +15,13 @@ const NAV_ITEMS = [
   { href: '/admin/demo-accounts', label: 'Demo Accounts', icon: ShieldAlert, roles: ['super_admin'] },
 ];
 
-export function GovSidebar({ className }: { className?: string }) {
-  const pathname = usePathname();
-  const router = useRouter();
-  const [user, setUser] = useState<{ name: string; role: string; department?: string } | null>(null);
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-    try {
-      const stored = localStorage.getItem('user');
-      if (stored) setUser(JSON.parse(stored));
-    } catch {}
-  }, []);
-
-  const handleLogout = () => {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
-    router.push('/login');
-  };
-
-  const visibleItems = !isMounted 
-    ? [] // Wait for client hydration
-    : NAV_ITEMS.filter(item => item.roles.includes(user?.role || ''));
-
+function SidebarContent({ user, visibleItems, pathname, handleLogout, onNavClick }: {
+  user: { name: string; role: string; department?: string } | null;
+  visibleItems: typeof NAV_ITEMS;
+  pathname: string;
+  handleLogout: () => void;
+  onNavClick?: () => void;
+}) {
   const roleLabel: Record<string, string> = {
     super_admin: 'Super Administrator',
     wwb_admin: 'WWB Administrator',
@@ -51,7 +33,7 @@ export function GovSidebar({ className }: { className?: string }) {
     : 'A';
 
   return (
-    <aside className={cn("w-64 h-screen sticky top-0 flex flex-col bg-[#060d14] border-r border-white/[0.06] shadow-2xl", className)}>
+    <>
       {/* Brand Header */}
       <div className="p-6 border-b border-white/[0.06] flex flex-col items-center text-center">
         <div className="relative mb-4">
@@ -80,6 +62,7 @@ export function GovSidebar({ className }: { className?: string }) {
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={onNavClick}
                 className={cn(
                   'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200',
                   isActive
@@ -87,7 +70,7 @@ export function GovSidebar({ className }: { className?: string }) {
                     : 'text-white/50 hover:text-white hover:bg-white/5'
                 )}
               >
-                <Icon className={cn('w-4 h-4', isActive ? 'text-white' : 'text-white/40')} />
+                <Icon className={cn('w-4 h-4 shrink-0', isActive ? 'text-white' : 'text-white/40')} />
                 {item.label}
               </Link>
             );
@@ -121,6 +104,102 @@ export function GovSidebar({ className }: { className?: string }) {
           </div>
         </div>
       </div>
-    </aside>
+    </>
+  );
+}
+
+export function GovSidebar({ className }: { className?: string }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const [user, setUser] = useState<{ name: string; role: string; department?: string } | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+    try {
+      const stored = localStorage.getItem('user');
+      if (stored) setUser(JSON.parse(stored));
+    } catch {}
+  }, []);
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
+  const handleLogout = () => {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
+    router.push('/login');
+  };
+
+  const visibleItems = !isMounted
+    ? []
+    : NAV_ITEMS.filter(item => item.roles.includes(user?.role || ''));
+
+  return (
+    <>
+      {/* Mobile top bar */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 h-14 bg-[#060d14] border-b border-white/[0.06] shadow-lg">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#D4AF37] to-[#a07d1c] p-[1.5px]">
+            <div className="w-full h-full rounded-full bg-[#0A5C36] flex items-center justify-center">
+              <span className="text-sm font-bold text-white" style={{ fontFamily: 'serif' }}>و</span>
+            </div>
+          </div>
+          <span className="text-white font-bold text-sm">Workers Welfare Board</span>
+        </div>
+        <button
+          onClick={() => setMobileOpen(true)}
+          className="text-white/70 hover:text-white p-1 rounded-md hover:bg-white/10 transition-colors"
+          aria-label="Open navigation menu"
+        >
+          <Menu className="w-6 h-6" />
+        </button>
+      </div>
+
+      {/* Mobile Overlay */}
+      {mobileOpen && (
+        <div
+          className="lg:hidden fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Mobile Drawer */}
+      <div className={cn(
+        'lg:hidden fixed top-0 left-0 z-50 h-full w-72 bg-[#060d14] flex flex-col transition-transform duration-300 ease-in-out shadow-2xl',
+        mobileOpen ? 'translate-x-0' : '-translate-x-full'
+      )}>
+        <div className="absolute top-4 right-4">
+          <button
+            onClick={() => setMobileOpen(false)}
+            className="text-white/50 hover:text-white p-1 rounded-md hover:bg-white/10 transition-colors"
+            aria-label="Close navigation menu"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <SidebarContent
+          user={user}
+          visibleItems={visibleItems}
+          pathname={pathname}
+          handleLogout={handleLogout}
+          onNavClick={() => setMobileOpen(false)}
+        />
+      </div>
+
+      {/* Desktop Sidebar */}
+      <aside className={cn('hidden lg:flex w-64 h-screen sticky top-0 flex-col bg-[#060d14] border-r border-white/[0.06] shadow-2xl', className)}>
+        <SidebarContent
+          user={user}
+          visibleItems={visibleItems}
+          pathname={pathname}
+          handleLogout={handleLogout}
+        />
+      </aside>
+    </>
   );
 }

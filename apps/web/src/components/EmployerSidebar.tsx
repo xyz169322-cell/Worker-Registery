@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { Users, Building2, FileText, LogOut, Bell } from 'lucide-react';
+import { Users, Building2, FileText, LogOut, Bell, Menu, X } from 'lucide-react';
 
 const NAV_ITEMS = [
   { href: '/employer', label: 'Company Profile', icon: Building2 },
@@ -11,29 +11,14 @@ const NAV_ITEMS = [
   { href: '/employer/reports', label: 'Reports', icon: FileText },
 ];
 
-export function EmployerSidebar({ className }: { className?: string }) {
-  const pathname = usePathname();
-  const router = useRouter();
-  const [user, setUser] = useState<{ name: string; email: string } | null>(null);
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-    try {
-      const stored = localStorage.getItem('user');
-      if (stored) setUser(JSON.parse(stored));
-    } catch {}
-  }, []);
-
-  const handleLogout = () => {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
-    router.push('/login');
-  };
-
+function SidebarContent({ user, pathname, handleLogout, onNavClick }: {
+  user: { name: string; email: string } | null;
+  pathname: string;
+  handleLogout: () => void;
+  onNavClick?: () => void;
+}) {
   return (
-    <aside className={cn("w-64 h-screen sticky top-0 flex flex-col bg-[#0d1f17] border-r border-[#D4AF37]/20 shadow-2xl", className)}>
+    <>
       {/* Brand Header */}
       <div className="p-6 border-b border-white/[0.06] flex flex-col items-center text-center">
         <div className="relative mb-4">
@@ -62,6 +47,7 @@ export function EmployerSidebar({ className }: { className?: string }) {
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={onNavClick}
                 className={cn(
                   'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200',
                   isActive
@@ -69,7 +55,7 @@ export function EmployerSidebar({ className }: { className?: string }) {
                     : 'text-white/50 hover:text-white hover:bg-white/5'
                 )}
               >
-                <Icon className={cn('w-4 h-4', isActive ? 'text-white' : 'text-white/40')} />
+                <Icon className={cn('w-4 h-4 shrink-0', isActive ? 'text-white' : 'text-white/40')} />
                 {item.label}
               </Link>
             );
@@ -103,6 +89,87 @@ export function EmployerSidebar({ className }: { className?: string }) {
           </div>
         </div>
       </div>
-    </aside>
+    </>
+  );
+}
+
+export function EmployerSidebar({ className }: { className?: string }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const [user, setUser] = useState<{ name: string; email: string } | null>(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('user');
+      if (stored) setUser(JSON.parse(stored));
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
+  const handleLogout = () => {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
+    router.push('/login');
+  };
+
+  return (
+    <>
+      {/* Mobile top bar */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 h-14 bg-[#0d1f17] border-b border-[#D4AF37]/20 shadow-lg">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#D4AF37] to-[#a07d1c] p-[1.5px]">
+            <div className="w-full h-full rounded-full bg-[#0A5C36] flex items-center justify-center">
+              <span className="text-sm font-bold text-white" style={{ fontFamily: 'serif' }}>و</span>
+            </div>
+          </div>
+          <div>
+            <span className="text-white font-bold text-sm">Workers Welfare Board</span>
+            <span className="ml-2 text-[#D4AF37] text-[10px] font-bold tracking-widest uppercase">Employer</span>
+          </div>
+        </div>
+        <button
+          onClick={() => setMobileOpen(true)}
+          className="text-white/70 hover:text-white p-1 rounded-md hover:bg-white/10 transition-colors"
+          aria-label="Open menu"
+        >
+          <Menu className="w-6 h-6" />
+        </button>
+      </div>
+
+      {/* Mobile Overlay */}
+      {mobileOpen && (
+        <div
+          className="lg:hidden fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Mobile Drawer */}
+      <div className={cn(
+        'lg:hidden fixed top-0 left-0 z-50 h-full w-72 bg-[#0d1f17] flex flex-col transition-transform duration-300 ease-in-out shadow-2xl border-r border-[#D4AF37]/20',
+        mobileOpen ? 'translate-x-0' : '-translate-x-full'
+      )}>
+        <div className="absolute top-4 right-4">
+          <button
+            onClick={() => setMobileOpen(false)}
+            className="text-white/50 hover:text-white p-1 rounded-md hover:bg-white/10 transition-colors"
+            aria-label="Close menu"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <SidebarContent user={user} pathname={pathname} handleLogout={handleLogout} onNavClick={() => setMobileOpen(false)} />
+      </div>
+
+      {/* Desktop Sidebar */}
+      <aside className={cn('hidden lg:flex w-64 h-screen sticky top-0 flex-col bg-[#0d1f17] border-r border-[#D4AF37]/20 shadow-2xl', className)}>
+        <SidebarContent user={user} pathname={pathname} handleLogout={handleLogout} />
+      </aside>
+    </>
   );
 }
