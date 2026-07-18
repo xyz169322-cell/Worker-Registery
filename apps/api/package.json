@@ -24,7 +24,8 @@
     "kysely": "^0.26.3",
     "morgan": "^1.10.0",
     "pg": "^8.11.3",
-    "redis": "^4.6.10"
+    "redis": "^4.6.10",
+    "twilio": "^6.0.2"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.4",
