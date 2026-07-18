@@ -52,8 +52,8 @@ export const WorkerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
       
       const res = await api.get('/workers/me');
-      if (res.data?.success) {
-        const w = res.data.data;
+      if (res?.success) {
+        const w = res.data;
         // Generate a pseudo-registration number for the card if it doesn't exist
         const year = new Date(w.created_at).getFullYear();
         const distCode = w.district ? w.district.substring(0, 3).toUpperCase() : 'PUN';
